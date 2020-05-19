@@ -3,10 +3,12 @@ FROM ubuntu:16.04
 # NOTE: This is not a production build: for sandbox/CI use only
 
 # Pass the version of PHP to use as a build arg - must have corresponding config file
-ARG version=7.2
+ARG version=7.3
 
 # Build dependencies - removed after build is complete
 ENV BUILDDEPS autoconf \
+        wget \
+        curl \
         dpkg-dev \
         freetds-dev \
         g++ \
@@ -47,7 +49,23 @@ ENV BUILDDEPS autoconf \
         make \
         pkg-config \
         re2c \
-        zlib1g-dev
+        zlib1g-dev \
+        libwebp-dev \
+        libsodium-dev \
+        apache2-bin \
+        libssh2-1 \
+        gnupg \
+        php-igbinary \
+        php-imagick \
+        libmemcached-dev \
+        memcached \
+        liboauth-dev \
+        php-propro-dev \
+        php-raphf-dev \
+        libyaml-dev \
+        tideways-daemon \
+        tideways-php \
+        tideways-cli
 
 # We use bash process substitution to simplify the validation diff commands
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -61,7 +79,12 @@ COPY "${version}"-config /usr/src/config
 # Install prerequisites, build PHP & extensions, validate the build then clean up
 # Ignore some linting rules that interfere with build/validation (cd, php vars etc)
 # hadolint ignore=SC1091,SC2016,SC2086,DL3003,DL3008
+
 RUN . /usr/src/config && \
+        apt-get update && \
+        apt-get install wget curl -y && \
+        wget -qO - https://s3-eu-west-1.amazonaws.com/tideways/packages/EEB5E8F4.gpg | apt-key add - && \
+        echo 'deb http://s3-eu-west-1.amazonaws.com/tideways/packages debian main' |  tee /etc/apt/sources.list.d/tideways.list && \
         apt-get update && apt-get install -y \
         ${BUILDDEPS} \
         # Permanently installed dependencies
@@ -72,7 +95,6 @@ RUN . /usr/src/config && \
         wget \
         xz-utils \
         --no-install-recommends && rm -r /var/lib/apt/lists/* && \
-        \
         # Download and build php
         cd /usr/src && \
         curl --silent --location --output php.tar.xz "http://us1.php.net/get/php-${EXACT_VERSION}.tar.xz/from/this/mirror" && \
